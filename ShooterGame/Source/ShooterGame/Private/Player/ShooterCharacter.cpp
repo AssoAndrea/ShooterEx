@@ -884,8 +884,20 @@ void AShooterCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindAction("Run", IE_Pressed, this, &AShooterCharacter::OnStartRunning);
 	PlayerInputComponent->BindAction("RunToggle", IE_Pressed, this, &AShooterCharacter::OnStartRunningToggle);
 	PlayerInputComponent->BindAction("Run", IE_Released, this, &AShooterCharacter::OnStopRunning);
+
+	PlayerInputComponent->BindAction("Teleport", IE_Pressed, this, &AShooterCharacter::OnMyTeleport);
+	PlayerInputComponent->BindAction("Teleport", IE_Released, this, &AShooterCharacter::OnMyTeleportStop);
 }
 
+void AShooterCharacter::OnMyTeleport()
+{
+	Cast<UShooterCharacterMovement>(GetCharacterMovement())->OnTeleport();
+}
+
+void AShooterCharacter::OnMyTeleportStop()
+{
+	Cast<UShooterCharacterMovement>(GetCharacterMovement())->TeleportStop();
+}
 
 void AShooterCharacter::FireTrigger(float Val)
 {

@@ -131,6 +131,10 @@ class AShooterCharacter : public ACharacter
 	/** setup pawn specific input handlers */
 	virtual void SetupPlayerInputComponent(class UInputComponent* InputComponent) override;
 
+	void OnMyTeleport();
+
+	void OnMyTeleportStop();
+
 	/**
 	* Handle analog trigger for firing
 	*
