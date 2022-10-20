@@ -42,6 +42,7 @@ public:
 
 	virtual float GetMaxSpeed() const override;
 
+
 	void UpdateFromCompressedFlags(uint8 Flags) override;
 
 	void OnTeleport();
@@ -52,9 +53,9 @@ public:
 
 	float LastTeleport;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category=Ability)
 	float TeleportCoolDown;
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = Ability)
 	float TeleportDistance;
 
 private:

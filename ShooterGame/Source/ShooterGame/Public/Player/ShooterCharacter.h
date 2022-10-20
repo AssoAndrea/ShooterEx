@@ -166,6 +166,10 @@ class AShooterCharacter : public ACharacter
 	/* Frame rate independent turn */
 	void TurnAtRate(float Val);
 
+	void Turn(float val);
+
+	void LookUp(float val);
+
 	/* Frame rate independent lookup */
 	void LookUpAtRate(float Val);
 
@@ -337,6 +341,14 @@ protected:
 	/** Base lookup rate, in deg/sec. Other scaling may affect final lookup rate. */
 	float BaseLookUpRate;
 
+	UPROPERTY(Transient,Replicated)
+	bool bIsMovementBlocked;
+
+	UPROPERTY(Transient,Replicated)
+	bool bIsWeaponBlocked;
+
+	FTimerHandle IceTimerHandle;
+
 	/** material instances for setting team color in mesh (3rd person view) */
 	UPROPERTY(Transient)
 	TArray<UMaterialInstanceDynamic*> MeshMIDs;
@@ -413,6 +425,22 @@ public:
 
 	/** Take damage, handle death */
 	virtual float TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, class AActor* DamageCauser) override;
+
+	void OnIce(bool bBlockMovement, bool bBlockWeapon,float IceTime);
+
+	void OnEndIce();
+
+	UFUNCTION(reliable, server, WithValidation)
+	void ServerOnEndIce();
+
+	void SwitchWeaponMode();
+
+	UFUNCTION(reliable, server, WithValidation)
+	void ServerOnIce(bool bBlockMovement, bool bBlockWeapon,float IceTime);
+
+	bool IsMovementBlocked();
+
+	bool IsWeaponBlocked();
 
 	/** Pawn suicide */
 	virtual void Suicide();

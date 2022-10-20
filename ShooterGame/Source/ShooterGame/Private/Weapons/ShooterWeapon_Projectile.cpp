@@ -13,6 +13,7 @@ AShooterWeapon_Projectile::AShooterWeapon_Projectile(const FObjectInitializer& O
 
 void AShooterWeapon_Projectile::FireWeapon()
 {
+
 	FVector ShootDir = GetAdjustedAim();
 	FVector Origin = GetMuzzleLocation();
 
@@ -64,6 +65,7 @@ void AShooterWeapon_Projectile::FireWeapon()
 	ServerFireProjectile(Origin, ShootDir);
 }
 
+
 bool AShooterWeapon_Projectile::ServerFireProjectile_Validate(FVector Origin, FVector_NetQuantizeNormal ShootDir)
 {
 	return true;
@@ -72,7 +74,7 @@ bool AShooterWeapon_Projectile::ServerFireProjectile_Validate(FVector Origin, FV
 void AShooterWeapon_Projectile::ServerFireProjectile_Implementation(FVector Origin, FVector_NetQuantizeNormal ShootDir)
 {
 	FTransform SpawnTM(ShootDir.Rotation(), Origin);
-	AShooterProjectile* Projectile = Cast<AShooterProjectile>(UGameplayStatics::BeginDeferredActorSpawnFromClass(this, ProjectileConfig.ProjectileClass, SpawnTM));
+	AShooterProjectile* Projectile = Cast<AShooterProjectile>(UGameplayStatics::BeginDeferredActorSpawnFromClass(this, bAlternativeMode? SpecialProjectileConfig.ProjectileClass : ProjectileConfig.ProjectileClass, SpawnTM));
 	if (Projectile)
 	{
 		Projectile->SetInstigator(GetInstigator());
@@ -85,5 +87,5 @@ void AShooterWeapon_Projectile::ServerFireProjectile_Implementation(FVector Orig
 
 void AShooterWeapon_Projectile::ApplyWeaponConfig(FProjectileWeaponData& Data)
 {
-	Data = ProjectileConfig;
+	Data = bAlternativeMode? SpecialProjectileConfig : ProjectileConfig;
 }

@@ -62,6 +62,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category=Config)
 	FProjectileWeaponData ProjectileConfig;
 
+	UPROPERTY(EditDefaultsOnly, Category = Config)
+	FProjectileWeaponData SpecialProjectileConfig;
+
 	//////////////////////////////////////////////////////////////////////////
 	// Weapon usage
 
@@ -71,4 +74,9 @@ protected:
 	/** spawn projectile on server */
 	UFUNCTION(reliable, server, WithValidation)
 	void ServerFireProjectile(FVector Origin, FVector_NetQuantizeNormal ShootDir);
+
+	FProjectileWeaponData ActualProjectile;
+
+	
+
 };

@@ -4,6 +4,7 @@
 
 #include "ShooterDamageType.generated.h"
 
+
 // DamageType class that specifies an icon to display
 UCLASS(const, Blueprintable, BlueprintType)
 class UShooterDamageType : public UDamageType
@@ -22,6 +23,8 @@ class UShooterDamageType : public UDamageType
 	UPROPERTY(EditDefaultsOnly, Category=Effects)
 	UForceFeedbackEffect *KilledForceFeedback;
 };
+
+
 
 
 

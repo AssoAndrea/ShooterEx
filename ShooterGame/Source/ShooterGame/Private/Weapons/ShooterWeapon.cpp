@@ -357,6 +357,25 @@ bool AShooterWeapon::CanReload() const
 //////////////////////////////////////////////////////////////////////////
 // Weapon usage
 
+void AShooterWeapon::SwitchMode()
+{
+	bAlternativeMode = !bAlternativeMode;
+	if (GetLocalRole() < ROLE_Authority)
+	{
+		ServerSwitchMode();
+	}
+}
+
+void AShooterWeapon::ServerSwitchMode_Implementation()
+{
+	SwitchMode();
+}
+
+bool AShooterWeapon::ServerSwitchMode_Validate()
+{
+	return true;
+}
+
 void AShooterWeapon::GiveAmmo(int AddAmount)
 {
 	const int32 MissingAmmo = FMath::Max(0, WeaponConfig.MaxAmmo - CurrentAmmo);
@@ -380,6 +399,7 @@ void AShooterWeapon::GiveAmmo(int AddAmount)
 
 void AShooterWeapon::UseAmmo()
 {
+
 	if (!HasInfiniteAmmo())
 	{
 		CurrentAmmoInClip--;
@@ -917,7 +937,8 @@ void AShooterWeapon::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & O
 {
 	Super::GetLifetimeReplicatedProps( OutLifetimeProps );
 
-	DOREPLIFETIME( AShooterWeapon, MyPawn );
+	DOREPLIFETIME(AShooterWeapon, MyPawn);
+	DOREPLIFETIME( AShooterWeapon, bAlternativeMode );
 
 	DOREPLIFETIME_CONDITION( AShooterWeapon, CurrentAmmo,		COND_OwnerOnly );
 	DOREPLIFETIME_CONDITION( AShooterWeapon, CurrentAmmoInClip, COND_OwnerOnly );

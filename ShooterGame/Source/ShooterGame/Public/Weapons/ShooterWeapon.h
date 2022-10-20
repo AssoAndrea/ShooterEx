@@ -111,11 +111,20 @@ class AShooterWeapon : public AActor
 		EMax,
 	};
 
+	void SwitchMode();
+
+	UFUNCTION(reliable, server, WithValidation)
+	void ServerSwitchMode();
+
+	UPROPERTY(Transient, Replicated)
+	bool bAlternativeMode;
+
 	/** [server] add ammo */
 	void GiveAmmo(int AddAmount);
 
 	/** consume a bullet */
 	void UseAmmo();
+
 
 	/** query ammo type */
 	virtual EAmmoType GetAmmoType() const

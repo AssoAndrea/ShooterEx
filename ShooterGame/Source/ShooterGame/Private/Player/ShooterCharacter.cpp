@@ -8,7 +8,9 @@
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimInstance.h"
 #include "Sound/SoundNodeLocalPlayer.h"
+#include "Weapons/SpecialShooterDamageType.h"
 #include "AudioThread.h"
+#include "ShooterCharacter.h"
 
 static int32 NetVisualizeRelevancyTestPoints = 0;
 FAutoConsoleVariableRef CVarNetVisualizeRelevancyTestPoints(
@@ -67,6 +69,8 @@ AShooterCharacter::AShooterCharacter(const FObjectInitializer& ObjectInitializer
 
 	BaseTurnRate = 45.f;
 	BaseLookUpRate = 45.f;
+	bIsMovementBlocked = false;
+	bIsWeaponBlocked = false;
 }
 
 void AShooterCharacter::PostInitializeComponents()
@@ -281,6 +285,21 @@ float AShooterCharacter::TakeDamage(float Damage, struct FDamageEvent const& Dam
 		}
 		else
 		{
+			//Check if it's special damage
+			USpecialShooterDamageType* SpecialType = Cast<USpecialShooterDamageType>(DamageEvent.DamageTypeClass->GetDefaultObject());
+
+			if (SpecialType)
+			{
+				switch (SpecialType->Type)
+				{
+				case SpecialType::DEFAULT:
+					break;
+				case SpecialType::ICE:
+					OnIce(SpecialType->bBlockMovement,SpecialType->bBlockShooting, SpecialType->EffectDuration);
+				default:
+					break;
+				}
+			}
 			PlayHit(ActualDamage, DamageEvent, EventInstigator ? EventInstigator->GetPawn() : NULL, DamageCauser);
 		}
 
@@ -290,6 +309,61 @@ float AShooterCharacter::TakeDamage(float Damage, struct FDamageEvent const& Dam
 	return ActualDamage;
 }
 
+void AShooterCharacter::OnIce(bool bBlockMovement,bool bBlockWeapon,float IceTime)
+{
+	if (bBlockWeapon)
+	{
+		OnStopFire();
+	}
+	bIsMovementBlocked = bBlockMovement;
+	bIsWeaponBlocked = bBlockWeapon;
+	GetWorld()->GetTimerManager().SetTimer(IceTimerHandle, this, &AShooterCharacter::OnEndIce,IceTime,false);
+	if (GetLocalRole() < ROLE_Authority)
+	{
+		ServerOnIce(bBlockMovement,bBlockWeapon, IceTime);
+	}
+}
+
+void AShooterCharacter::OnEndIce()
+{
+	bIsMovementBlocked = false;
+	bIsWeaponBlocked = false;
+	if (GetLocalRole() < ROLE_Authority)
+	{
+		ServerOnEndIce();
+	}
+}
+bool AShooterCharacter::ServerOnEndIce_Validate()
+{
+	return true;
+}
+void AShooterCharacter::ServerOnEndIce_Implementation()
+{
+	OnEndIce();
+}
+void AShooterCharacter::SwitchWeaponMode()
+{
+	CurrentWeapon->SwitchMode();
+}
+
+bool AShooterCharacter::ServerOnIce_Validate(bool bBlockMovement, bool bBlockWeapon,float IceTime)
+{
+	return true;
+}
+void AShooterCharacter::ServerOnIce_Implementation(bool bBlockMovement, bool bBlockWeapon, float IceTime)
+{
+	OnIce(bBlockMovement,bBlockWeapon,IceTime);
+}
+
+bool AShooterCharacter::IsMovementBlocked()
+{
+	return bIsMovementBlocked;
+}
+
+bool AShooterCharacter::IsWeaponBlocked()
+{
+	return bIsWeaponBlocked;
+}
 
 bool AShooterCharacter::CanDie(float KillingDamage, FDamageEvent const& DamageEvent, AController* Killer, AActor* DamageCauser) const
 {
@@ -854,9 +928,9 @@ void AShooterCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindAxis("MoveForward", this, &AShooterCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AShooterCharacter::MoveRight);
 	PlayerInputComponent->BindAxis("MoveUp", this, &AShooterCharacter::MoveUp);
-	PlayerInputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
+	PlayerInputComponent->BindAxis("Turn", this, &AShooterCharacter::Turn);
 	PlayerInputComponent->BindAxis("TurnRate", this, &AShooterCharacter::TurnAtRate);
-	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
+	PlayerInputComponent->BindAxis("LookUp", this, &AShooterCharacter::LookUp);
 	PlayerInputComponent->BindAxis("LookUpRate", this, &AShooterCharacter::LookUpAtRate);
 
 	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
@@ -885,13 +959,20 @@ void AShooterCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindAction("RunToggle", IE_Pressed, this, &AShooterCharacter::OnStartRunningToggle);
 	PlayerInputComponent->BindAction("Run", IE_Released, this, &AShooterCharacter::OnStopRunning);
 
+	//ABILITY
 	PlayerInputComponent->BindAction("Teleport", IE_Pressed, this, &AShooterCharacter::OnMyTeleport);
 	PlayerInputComponent->BindAction("Teleport", IE_Released, this, &AShooterCharacter::OnMyTeleportStop);
+
+	PlayerInputComponent->BindAction("SwitchWeaponMode", IE_Pressed, this, &AShooterCharacter::SwitchWeaponMode);
+
 }
 
 void AShooterCharacter::OnMyTeleport()
 {
-	Cast<UShooterCharacterMovement>(GetCharacterMovement())->OnTeleport();
+	if (!IsMovementBlocked())
+	{
+		Cast<UShooterCharacterMovement>(GetCharacterMovement())->OnTeleport();
+	}
 }
 
 void AShooterCharacter::OnMyTeleportStop()
@@ -906,7 +987,7 @@ void AShooterCharacter::FireTrigger(float Val)
 	{
 		OnStopFire();
 	}
-	else if (!bWantsToFire && Val >= MyPC->FireTriggerThreshold)
+	else if (!bWantsToFire && Val >= MyPC->FireTriggerThreshold && !IsWeaponBlocked())
 	{
 		OnStartFire();
 	}
@@ -914,7 +995,8 @@ void AShooterCharacter::FireTrigger(float Val)
 
 void AShooterCharacter::MoveForward(float Val)
 {
-	if (Controller && Val != 0.f)
+
+	if (Controller && Val != 0.f && !IsMovementBlocked())
 	{
 		// Limit pitch when walking or falling
 		const bool bLimitRotation = (GetCharacterMovement()->IsMovingOnGround() || GetCharacterMovement()->IsFalling());
@@ -926,7 +1008,7 @@ void AShooterCharacter::MoveForward(float Val)
 
 void AShooterCharacter::MoveRight(float Val)
 {
-	if (Val != 0.f)
+	if (Val != 0.f && !IsMovementBlocked())
 	{
 		const FQuat Rotation = GetActorQuat();
 		const FVector Direction = FQuatRotationMatrix(Rotation).GetScaledAxis(EAxis::Y);
@@ -950,18 +1032,43 @@ void AShooterCharacter::MoveUp(float Val)
 
 void AShooterCharacter::TurnAtRate(float Val)
 {
+	if (IsMovementBlocked())
+	{
+		return;
+	}
 	// calculate delta for this frame from the rate information
 	AddControllerYawInput(Val * BaseTurnRate * GetWorld()->GetDeltaSeconds());
 }
-
+void AShooterCharacter::Turn(float val)
+{
+	if (!IsMovementBlocked())
+	{
+		AddControllerYawInput(val);
+	}
+}
+void AShooterCharacter::LookUp(float val)
+{
+	if (!IsMovementBlocked())
+	{
+		AddControllerPitchInput(val);
+	}
+}
 void AShooterCharacter::LookUpAtRate(float Val)
 {
+	if (IsMovementBlocked())
+	{
+		return;
+	}
 	// calculate delta for this frame from the rate information
 	AddControllerPitchInput(Val * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
 }
 
 void AShooterCharacter::OnStartFire()
 {
+	if (IsWeaponBlocked())
+	{
+		return;
+	}
 	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
 	if (MyPC && MyPC->IsGameInputAllowed())
 	{
@@ -981,7 +1088,7 @@ void AShooterCharacter::OnStopFire()
 void AShooterCharacter::OnStartTargeting()
 {
 	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
-	if (MyPC && MyPC->IsGameInputAllowed())
+	if (MyPC && MyPC->IsGameInputAllowed() && !IsWeaponBlocked())
 	{
 		if (IsRunning())
 		{
@@ -999,7 +1106,7 @@ void AShooterCharacter::OnStopTargeting()
 void AShooterCharacter::OnNextWeapon()
 {
 	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
-	if (MyPC && MyPC->IsGameInputAllowed())
+	if (MyPC && MyPC->IsGameInputAllowed() && !IsMovementBlocked())
 	{
 		if (Inventory.Num() >= 2 && (CurrentWeapon == NULL || CurrentWeapon->GetCurrentState() != EWeaponState::Equipping))
 		{
@@ -1013,7 +1120,7 @@ void AShooterCharacter::OnNextWeapon()
 void AShooterCharacter::OnPrevWeapon()
 {
 	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
-	if (MyPC && MyPC->IsGameInputAllowed())
+	if (MyPC && MyPC->IsGameInputAllowed() && !IsMovementBlocked())
 	{
 		if (Inventory.Num() >= 2 && (CurrentWeapon == NULL || CurrentWeapon->GetCurrentState() != EWeaponState::Equipping))
 		{
@@ -1027,7 +1134,7 @@ void AShooterCharacter::OnPrevWeapon()
 void AShooterCharacter::OnReload()
 {
 	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
-	if (MyPC && MyPC->IsGameInputAllowed())
+	if (MyPC && MyPC->IsGameInputAllowed() && !IsMovementBlocked())
 	{
 		if (CurrentWeapon)
 		{
@@ -1165,7 +1272,7 @@ void AShooterCharacter::BeginDestroy()
 void AShooterCharacter::OnStartJump()
 {
 	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
-	if (MyPC && MyPC->IsGameInputAllowed())
+	if (MyPC && MyPC->IsGameInputAllowed() && !IsMovementBlocked())
 	{
 		bPressedJump = true;
 	}
@@ -1204,6 +1311,8 @@ void AShooterCharacter::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > &
 	// everyone
 	DOREPLIFETIME(AShooterCharacter, CurrentWeapon);
 	DOREPLIFETIME(AShooterCharacter, Health);
+	DOREPLIFETIME(AShooterCharacter, bIsWeaponBlocked);
+	DOREPLIFETIME(AShooterCharacter, bIsMovementBlocked);
 }
 
 bool AShooterCharacter::IsReplicationPausedForConnection(const FNetViewer& ConnectionOwnerNetViewer)
