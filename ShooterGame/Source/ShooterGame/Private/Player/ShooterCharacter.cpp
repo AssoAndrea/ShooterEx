@@ -358,7 +358,6 @@ void AShooterCharacter::SpawnIceNiagara_Implementation(UNiagaraSystem* Niagara)
 void AShooterCharacter::SwitchWeaponMode()
 {
 	CurrentWeapon->SwitchMode();
-	PlayAnimMontage(CurrentWeapon->ReloadAnim.Pawn1P);
 }
 
 bool AShooterCharacter::ServerOnIce_Validate(const USpecialShooterDamageType* DamageType)
