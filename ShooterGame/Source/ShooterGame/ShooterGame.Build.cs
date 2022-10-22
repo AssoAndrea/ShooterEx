@@ -34,6 +34,7 @@ public class ShooterGame : ModuleRules
 				"NavigationSystem",
 				"AIModule",
 				"GameplayTasks",
+				"Niagara",
 				"Gauntlet",
 			}
 		);
@@ -43,6 +44,7 @@ public class ShooterGame : ModuleRules
 				"InputCore",
 				"Slate",
 				"SlateCore",
+				"Niagara",
 				"ShooterGameLoadingScreen",
 				"Json",
 				"ApplicationCore",

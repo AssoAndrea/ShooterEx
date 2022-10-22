@@ -26,6 +26,26 @@ void UShooterCharacterMovement::OnComponentDestroyed(bool bDestroyedHierachy)
 {
 }
 
+void UShooterCharacterMovement::PerformMovement(float DeltaSeconds)
+{
+	Super::PerformMovement(DeltaSeconds);
+
+	if (bWantsToTeleport)
+	{
+		Teleport();
+	}
+	if (bWantsToFly)
+	{
+		ActualZSpeed = StartVelocityZ;
+		if (ActualZSpeed < MaxVelocityZ)
+		{
+			ActualZSpeed += JetpackZSpeedVariation * DeltaSeconds;
+		}
+		FVector newVelocity = FVector(Velocity.X, Velocity.Y, ActualZSpeed);
+		Velocity = newVelocity;
+	}
+}
+
 float UShooterCharacterMovement::GetMaxSpeed() const
 {
 	float MaxSpeed = Super::GetMaxSpeed();
@@ -46,6 +66,12 @@ float UShooterCharacterMovement::GetMaxSpeed() const
 	return MaxSpeed;
 }
 
+void UShooterCharacterMovement::BeginPlay()
+{
+	Super::BeginPlay();
+	JetpackFuel = MaxJetpackFuel;
+}
+
 FNetworkPredictionData_Shooter::FNetworkPredictionData_Shooter(const UShooterCharacterMovement& ClientMovement) : FNetworkPredictionData_Client_Character(ClientMovement)
 {
 }
@@ -60,7 +86,11 @@ uint8 FSavedMove_Custom::GetCompressedFlags() const
 	uint8 result = Super::GetCompressedFlags();
 	if (bWantsToTeleport)
 	{
-		result |= FLAG_TELEPORT; //Teleport
+		result |= FLAG_TELEPORT;
+	}
+	if (bWantsToFly)
+	{
+		result |= FLAG_JETPACK;
 	}
 	return result;
 }
@@ -74,46 +104,47 @@ void FSavedMove_Custom::Clear()
 void FSavedMove_Custom::PrepMoveFor(ACharacter* Character)
 {
 	Super::PrepMoveFor(Character);
-	UShooterCharacterMovement* DefaultCharacterMovement = Cast<UShooterCharacterMovement>(Character->GetCharacterMovement());
-	if (DefaultCharacterMovement)
+	UShooterCharacterMovement* CharacterMovement = Cast<UShooterCharacterMovement>(Character->GetCharacterMovement());
+	if (CharacterMovement)
 	{
-		DefaultCharacterMovement->bWantsToTeleport = bWantsToTeleport;
+		CharacterMovement->bWantsToTeleport = bWantsToTeleport;
+		CharacterMovement->bWantsToFly = bWantsToFly;
 	}
 }
 
 void FSavedMove_Custom::SetMoveFor(ACharacter* Character, float InDeltaTime, FVector const& NewAccel, FNetworkPredictionData_Client_Character& ClientData)
 {
 	Super::SetMoveFor(Character, InDeltaTime, NewAccel, ClientData);
-	const UShooterCharacterMovement* DefaultCharacterMovement = Cast<UShooterCharacterMovement>(Character->GetCharacterMovement());
-	if (DefaultCharacterMovement)
+	const UShooterCharacterMovement* CharacterMovement = Cast<UShooterCharacterMovement>(Character->GetCharacterMovement());
+	if (CharacterMovement)
 	{
-		bWantsToTeleport = DefaultCharacterMovement->bWantsToTeleport;
+		bWantsToTeleport = CharacterMovement->bWantsToTeleport;
+		bWantsToFly = CharacterMovement->bWantsToFly;
 	}
 }
 
 void UShooterCharacterMovement::UpdateFromCompressedFlags(uint8 Flags)
 {
 	Super::UpdateFromCompressedFlags(Flags);
-	//UE_LOG(LogTemp, Warning, TEXT("flag = %u"), Flags);
-	bWantsToTeleport = ((Flags & FSavedMove_Character::FLAG_Custom_0) != 0);
-	if (CharacterOwner->GetLocalRole() == ROLE_Authority)
-	{
-		if (bWantsToTeleport)
-		{
-			Teleport();
-			bWantsToTeleport = false;
-		}
-	}
-
+	bWantsToTeleport = ((Flags & FSavedMove_Character::FLAG_TELEPORT) != 0);
+	bWantsToFly = ((Flags & FSavedMove_Character::FLAG_JETPACK) != 0);
 }
 
 
 void UShooterCharacterMovement::OnTeleport()
 {
-	if (CharacterOwner->IsLocallyControlled())
-	{
-		Teleport();
-	}
+	bWantsToTeleport = true;
+}
+
+void UShooterCharacterMovement::OnFly()
+{
+	bWantsToFly = true;
+}
+
+void UShooterCharacterMovement::OnStopFly()
+{
+	bWantsToFly = false;
+
 }
 
 void UShooterCharacterMovement::Teleport()
@@ -125,16 +156,20 @@ void UShooterCharacterMovement::Teleport()
 	FVector newPosition = CharacterOwner->GetActorForwardVector() * TeleportDistance;
 	CharacterOwner->AddActorWorldOffset(newPosition, true);
 	LastTeleport = GetWorld()->TimeSeconds;
-	bWantsToTeleport = true;
-}
-
-void UShooterCharacterMovement::TeleportStop()
-{
-	//return;
 	bWantsToTeleport = false;
 }
 
-bool UShooterCharacterMovement::CanTeleport()
+void UShooterCharacterMovement::OnTeleportStop()
+{
+	bWantsToTeleport = false;
+}
+
+bool UShooterCharacterMovement::CanFly() const
+{
+	return true;
+}
+
+bool UShooterCharacterMovement::CanTeleport() const
 {
 	float ActualTime = GetWorld()->TimeSeconds;
 	if (LastTeleport == 0 || (ActualTime - LastTeleport) > TeleportCoolDown)

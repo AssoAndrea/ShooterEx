@@ -271,6 +271,10 @@ class AShooterWeapon : public AActor
 	UPROPERTY(Transient)
 	float TimerIntervalAdjustment;
 
+	/** reload animations */
+	UPROPERTY(EditDefaultsOnly, Category = Animation)
+		FWeaponAnim ReloadAnim;
+
 	/** Whether to allow automatic weapons to catch up with shorter refire cycles */
 	UPROPERTY(Config)
 	bool bAllowAutomaticWeaponCatchup = true;
@@ -299,6 +303,8 @@ protected:
 	/** weapon data */
 	UPROPERTY(EditDefaultsOnly, Category=Config)
 	FWeaponData WeaponConfig;
+
+
 
 private:
 	/** weapon mesh: 1st person view */
@@ -358,9 +364,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category=Sound)
 	USoundCue* ReloadSound;
 
-	/** reload animations */
-	UPROPERTY(EditDefaultsOnly, Category=Animation)
-	FWeaponAnim ReloadAnim;
+
 
 	/** equip sound */
 	UPROPERTY(EditDefaultsOnly, Category=Sound)

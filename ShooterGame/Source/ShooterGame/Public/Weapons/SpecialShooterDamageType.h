@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Weapons/ShooterDamageType.h"
+#include "NiagaraSystem.h"
 #include "SpecialShooterDamageType.generated.h"
 
 UENUM(BlueprintType)
@@ -33,4 +34,8 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = DamageSettings)
 	bool bBlockShooting;
+
+	UPROPERTY(EditDefaultsOnly, Category = NiagaraEffect)
+	UNiagaraSystem* NiagaraSystem;
+
 };

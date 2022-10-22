@@ -7,7 +7,8 @@
 #pragma once
 #include "ShooterCharacterMovement.generated.h"
 
-#define FLAG_TELEPORT FLAG_Custom_0;
+#define FLAG_TELEPORT FLAG_Custom_0
+#define FLAG_JETPACK FLAG_Custom_1
 
 class FSavedMove_Custom : public FSavedMove_Character
 {
@@ -20,6 +21,7 @@ public:
 
 private:
 	bool bWantsToTeleport;
+	bool bWantsToFly;
 
 };
 
@@ -39,27 +41,54 @@ class UShooterCharacterMovement : public UCharacterMovementComponent
 public:
 	virtual FNetworkPredictionData_Client* GetPredictionData_Client() const override;
 	virtual void OnComponentDestroyed(bool bDestroyedHierachy) override;
-
+	virtual void PerformMovement(float DeltaSeconds) override;
 	virtual float GetMaxSpeed() const override;
+	virtual void BeginPlay() override;
 
 
 	void UpdateFromCompressedFlags(uint8 Flags) override;
 
 	void OnTeleport();
+
+	void OnFly();
+
+	void OnStopFly();
+
 	void Teleport();
-	void TeleportStop();
+
+	void OnTeleportStop();
+
+	bool CanFly() const;
+
 	bool bWantsToTeleport;
-	bool bWantsToWallrun;
+	bool bWantsToFly;
 
-	float LastTeleport;
 
-	UPROPERTY(EditAnywhere, Category=Ability)
+	UPROPERTY(EditAnywhere, Category = Ability)
 	float TeleportCoolDown;
+
 	UPROPERTY(EditAnywhere, Category = Ability)
 	float TeleportDistance;
 
+	UPROPERTY(EditAnywhere, Category = "Ability|Jetpack")
+	float MaxJetpackFuel;
+
+	UPROPERTY(EditAnywhere, Category = "Ability|Jetpack")
+	float StartVelocityZ;
+
+	UPROPERTY(EditAnywhere, Category = "Ability|Jetpack")
+	float MaxVelocityZ;
+
+	UPROPERTY(EditAnywhere, Category = "Ability|Jetpack")
+	float JetpackConsumeRate;
+
+	UPROPERTY(EditAnywhere, Category = "Ability|Jetpack")
+	float JetpackZSpeedVariation;
 private:
-	bool CanTeleport();
+	bool CanTeleport() const;
+	float LastTeleport;
+	float JetpackFuel;
+	float ActualZSpeed;
 
 };
 

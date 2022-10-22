@@ -3,12 +3,13 @@
 #include "ShooterGame.h"
 #include "Weapons/ShooterWeapon.h"
 #include "Weapons/ShooterDamageType.h"
+#include "Weapons/SpecialShooterDamageType.h"
 #include "UI/ShooterHUD.h"
 #include "Online/ShooterPlayerState.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimInstance.h"
 #include "Sound/SoundNodeLocalPlayer.h"
-#include "Weapons/SpecialShooterDamageType.h"
+#include "NiagaraFunctionLibrary.h"
 #include "AudioThread.h"
 #include "ShooterCharacter.h"
 
@@ -295,7 +296,7 @@ float AShooterCharacter::TakeDamage(float Damage, struct FDamageEvent const& Dam
 				case SpecialType::DEFAULT:
 					break;
 				case SpecialType::ICE:
-					OnIce(SpecialType->bBlockMovement,SpecialType->bBlockShooting, SpecialType->EffectDuration);
+					OnIce(SpecialType);
 				default:
 					break;
 				}
@@ -309,18 +310,27 @@ float AShooterCharacter::TakeDamage(float Damage, struct FDamageEvent const& Dam
 	return ActualDamage;
 }
 
-void AShooterCharacter::OnIce(bool bBlockMovement,bool bBlockWeapon,float IceTime)
+void AShooterCharacter::OnIce(const USpecialShooterDamageType* DamageType)
 {
-	if (bBlockWeapon)
+	if (DamageType->bBlockShooting)
 	{
 		OnStopFire();
 	}
-	bIsMovementBlocked = bBlockMovement;
-	bIsWeaponBlocked = bBlockWeapon;
-	GetWorld()->GetTimerManager().SetTimer(IceTimerHandle, this, &AShooterCharacter::OnEndIce,IceTime,false);
+
+	bIsMovementBlocked = DamageType->bBlockMovement;
+	bIsWeaponBlocked = DamageType->bBlockShooting;
+
+	GetWorld()->GetTimerManager().SetTimer(IceTimerHandle, this, &AShooterCharacter::OnEndIce, DamageType->EffectDuration,false);
+
+
+
 	if (GetLocalRole() < ROLE_Authority)
 	{
-		ServerOnIce(bBlockMovement,bBlockWeapon, IceTime);
+		ServerOnIce(DamageType);
+	}
+	else
+	{
+		SpawnIceNiagara(DamageType->NiagaraSystem);
 	}
 }
 
@@ -341,18 +351,23 @@ void AShooterCharacter::ServerOnEndIce_Implementation()
 {
 	OnEndIce();
 }
+void AShooterCharacter::SpawnIceNiagara_Implementation(UNiagaraSystem* Niagara)
+{
+	UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, Niagara, GetMesh()->GetComponentTransform().GetLocation());
+}
 void AShooterCharacter::SwitchWeaponMode()
 {
 	CurrentWeapon->SwitchMode();
+	PlayAnimMontage(CurrentWeapon->ReloadAnim.Pawn1P);
 }
 
-bool AShooterCharacter::ServerOnIce_Validate(bool bBlockMovement, bool bBlockWeapon,float IceTime)
+bool AShooterCharacter::ServerOnIce_Validate(const USpecialShooterDamageType* DamageType)
 {
 	return true;
 }
-void AShooterCharacter::ServerOnIce_Implementation(bool bBlockMovement, bool bBlockWeapon, float IceTime)
+void AShooterCharacter::ServerOnIce_Implementation(const USpecialShooterDamageType* DamageType)
 {
-	OnIce(bBlockMovement,bBlockWeapon,IceTime);
+	OnIce(DamageType);
 }
 
 bool AShooterCharacter::IsMovementBlocked()
@@ -960,14 +975,18 @@ void AShooterCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindAction("Run", IE_Released, this, &AShooterCharacter::OnStopRunning);
 
 	//ABILITY
-	PlayerInputComponent->BindAction("Teleport", IE_Pressed, this, &AShooterCharacter::OnMyTeleport);
-	PlayerInputComponent->BindAction("Teleport", IE_Released, this, &AShooterCharacter::OnMyTeleportStop);
+	PlayerInputComponent->BindAction("Teleport", IE_Pressed, this, &AShooterCharacter::OnTeleport);
+	PlayerInputComponent->BindAction("Teleport", IE_Released, this, &AShooterCharacter::OnStopTeleport);
 
 	PlayerInputComponent->BindAction("SwitchWeaponMode", IE_Pressed, this, &AShooterCharacter::SwitchWeaponMode);
 
+	PlayerInputComponent->BindAction("Jetpack", IE_Pressed, this, &AShooterCharacter::OnStartFly);
+	PlayerInputComponent->BindAction("Jetpack", IE_Released, this, &AShooterCharacter::OnStopFly);
+
+
 }
 
-void AShooterCharacter::OnMyTeleport()
+void AShooterCharacter::OnTeleport()
 {
 	if (!IsMovementBlocked())
 	{
@@ -975,9 +994,24 @@ void AShooterCharacter::OnMyTeleport()
 	}
 }
 
-void AShooterCharacter::OnMyTeleportStop()
+void AShooterCharacter::OnStopTeleport()
 {
-	Cast<UShooterCharacterMovement>(GetCharacterMovement())->TeleportStop();
+	Cast<UShooterCharacterMovement>(GetCharacterMovement())->OnTeleportStop();
+}
+
+void AShooterCharacter::OnStartFly()
+{
+	if (!GetCharacterMovement()->IsFalling())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("JUMP"));
+		Jump();
+	}
+	Cast<UShooterCharacterMovement>(GetCharacterMovement())->OnFly();
+}
+
+void AShooterCharacter::OnStopFly()
+{
+	Cast<UShooterCharacterMovement>(GetCharacterMovement())->OnStopFly();
 }
 
 void AShooterCharacter::FireTrigger(float Val)

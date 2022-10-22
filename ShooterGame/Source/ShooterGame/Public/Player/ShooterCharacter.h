@@ -3,10 +3,14 @@
 #pragma once
 
 #include "ShooterTypes.h"
+
 #include "ShooterCharacter.generated.h"
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnShooterCharacterEquipWeapon, AShooterCharacter*, AShooterWeapon* /* new */);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnShooterCharacterUnEquipWeapon, AShooterCharacter*, AShooterWeapon* /* old */);
+
+class USpecialShooterDamageType;
+class UNiagaraSystem;
 
 UCLASS(Abstract)
 class AShooterCharacter : public ACharacter
@@ -131,9 +135,13 @@ class AShooterCharacter : public ACharacter
 	/** setup pawn specific input handlers */
 	virtual void SetupPlayerInputComponent(class UInputComponent* InputComponent) override;
 
-	void OnMyTeleport();
+	void OnTeleport();
 
-	void OnMyTeleportStop();
+	void OnStopTeleport();
+
+	void OnStartFly();
+
+	void OnStopFly();
 
 	/**
 	* Handle analog trigger for firing
@@ -426,17 +434,20 @@ public:
 	/** Take damage, handle death */
 	virtual float TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, class AActor* DamageCauser) override;
 
-	void OnIce(bool bBlockMovement, bool bBlockWeapon,float IceTime);
+	void OnIce(const USpecialShooterDamageType* DamageType);
 
 	void OnEndIce();
 
 	UFUNCTION(reliable, server, WithValidation)
 	void ServerOnEndIce();
 
+	UFUNCTION(reliable, NetMulticast)
+	void SpawnIceNiagara(UNiagaraSystem* Niagara);
+
 	void SwitchWeaponMode();
 
 	UFUNCTION(reliable, server, WithValidation)
-	void ServerOnIce(bool bBlockMovement, bool bBlockWeapon,float IceTime);
+	void ServerOnIce(const USpecialShooterDamageType* DamageType);
 
 	bool IsMovementBlocked();
 
