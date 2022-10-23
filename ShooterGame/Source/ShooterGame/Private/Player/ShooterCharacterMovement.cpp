@@ -28,22 +28,25 @@ void UShooterCharacterMovement::OnComponentDestroyed(bool bDestroyedHierachy)
 
 void UShooterCharacterMovement::PerformMovement(float DeltaSeconds)
 {
-	Super::PerformMovement(DeltaSeconds);
 
 	if (bWantsToTeleport)
 	{
 		Teleport();
 	}
-	if (bWantsToFly)
+	if (bWantsToFly && JetpackFuel >= 0)
 	{
-		ActualZSpeed = StartVelocityZ;
-		if (ActualZSpeed < MaxVelocityZ)
-		{
-			ActualZSpeed += JetpackZSpeedVariation * DeltaSeconds;
-		}
-		FVector newVelocity = FVector(Velocity.X, Velocity.Y, ActualZSpeed);
-		Velocity = newVelocity;
+		FVector newVelocity = FVector(Velocity.X, Velocity.Y, JetpackVelocity);
+		AddForce(newVelocity);
+
+		JetpackFuel -= JetpackConsumeRate * DeltaSeconds;
 	}
+	else if (JetpackFuel < MaxJetpackFuel && IsMovingOnGround())
+	{
+		JetpackFuel += JetpackConsumeRate * DeltaSeconds;
+	}
+
+	Super::PerformMovement(DeltaSeconds);
+
 }
 
 float UShooterCharacterMovement::GetMaxSpeed() const

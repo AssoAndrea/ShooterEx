@@ -111,13 +111,15 @@ class AShooterWeapon : public AActor
 		EMax,
 	};
 
-	void SwitchMode();
+	void SetFireMode(bool bSecondaryFire = false);
 
 	UFUNCTION(reliable, server, WithValidation)
-	void ServerSwitchMode();
+	void ServerSetFireMode(bool bSecondaryFire = false);
 
 	UPROPERTY(Transient, Replicated)
-	bool bAlternativeMode;
+	bool bSecondaryFire;
+
+	bool bHasSecondaryFire;
 
 	/** [server] add ammo */
 	void GiveAmmo(int AddAmount);

@@ -97,7 +97,7 @@ class AShooterCharacter : public ACharacter
 	// Weapon usage
 
 	/** [local] starts weapon fire */
-	void StartWeaponFire();
+	void StartWeaponFire(bool bSecondaryFire = false);
 
 	/** [local] stops weapon fire */
 	void StopWeaponFire();
@@ -444,7 +444,7 @@ public:
 	UFUNCTION(reliable, NetMulticast)
 	void SpawnIceNiagara(UNiagaraSystem* Niagara);
 
-	void SwitchWeaponMode();
+	void OnStartSecondaryFire();
 
 	UFUNCTION(reliable, server, WithValidation)
 	void ServerOnIce(const USpecialShooterDamageType* DamageType);

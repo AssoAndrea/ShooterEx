@@ -70,25 +70,24 @@ public:
 	UPROPERTY(EditAnywhere, Category = Ability)
 	float TeleportDistance;
 
-	UPROPERTY(EditAnywhere, Category = "Ability|Jetpack")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ability|Jetpack")
 	float MaxJetpackFuel;
 
 	UPROPERTY(EditAnywhere, Category = "Ability|Jetpack")
-	float StartVelocityZ;
-
-	UPROPERTY(EditAnywhere, Category = "Ability|Jetpack")
-	float MaxVelocityZ;
+	float JetpackVelocity;
 
 	UPROPERTY(EditAnywhere, Category = "Ability|Jetpack")
 	float JetpackConsumeRate;
 
-	UPROPERTY(EditAnywhere, Category = "Ability|Jetpack")
-	float JetpackZSpeedVariation;
+protected:
+	UPROPERTY(BlueprintReadOnly)
+	float JetpackFuel;
+
 private:
 	bool CanTeleport() const;
 	float LastTeleport;
-	float JetpackFuel;
-	float ActualZSpeed;
+
+
 
 };
 

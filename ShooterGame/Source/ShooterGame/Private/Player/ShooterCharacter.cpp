@@ -353,11 +353,24 @@ void AShooterCharacter::ServerOnEndIce_Implementation()
 }
 void AShooterCharacter::SpawnIceNiagara_Implementation(UNiagaraSystem* Niagara)
 {
-	UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, Niagara, GetMesh()->GetComponentTransform().GetLocation());
+	int RandomZRot = FMath::RandRange(0, 366);
+	UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, Niagara, GetMesh()->GetComponentLocation(), FRotator::MakeFromEuler(FVector(0, 0, RandomZRot)));
 }
-void AShooterCharacter::SwitchWeaponMode()
+void AShooterCharacter::OnStartSecondaryFire()
 {
-	CurrentWeapon->SwitchMode();
+	if (IsWeaponBlocked() || !CurrentWeapon->bHasSecondaryFire)
+	{
+		return;
+	}
+	AShooterPlayerController* MyPC = Cast<AShooterPlayerController>(Controller);
+	if (MyPC && MyPC->IsGameInputAllowed())
+	{
+		if (IsRunning())
+		{
+			SetRunning(false, false);
+		}
+		StartWeaponFire(true);
+	}
 }
 
 bool AShooterCharacter::ServerOnIce_Validate(const USpecialShooterDamageType* DamageType)
@@ -785,13 +798,14 @@ void AShooterCharacter::SetCurrentWeapon(AShooterWeapon* NewWeapon, AShooterWeap
 //////////////////////////////////////////////////////////////////////////
 // Weapon usage
 
-void AShooterCharacter::StartWeaponFire()
+void AShooterCharacter::StartWeaponFire(bool bSecondaryFire)
 {
 	if (!bWantsToFire)
 	{
 		bWantsToFire = true;
 		if (CurrentWeapon)
 		{
+			CurrentWeapon->SetFireMode(bSecondaryFire);
 			CurrentWeapon->StartFire();
 		}
 	}
@@ -977,7 +991,10 @@ void AShooterCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindAction("Teleport", IE_Pressed, this, &AShooterCharacter::OnTeleport);
 	PlayerInputComponent->BindAction("Teleport", IE_Released, this, &AShooterCharacter::OnStopTeleport);
 
-	PlayerInputComponent->BindAction("SwitchWeaponMode", IE_Pressed, this, &AShooterCharacter::SwitchWeaponMode);
+	PlayerInputComponent->BindAction("FireSecondary", IE_Pressed, this, &AShooterCharacter::OnStartSecondaryFire);
+
+	PlayerInputComponent->BindAction("FireSecondary", IE_Released, this, &AShooterCharacter::OnStopFire);
+
 
 	PlayerInputComponent->BindAction("Jetpack", IE_Pressed, this, &AShooterCharacter::OnStartFly);
 	PlayerInputComponent->BindAction("Jetpack", IE_Released, this, &AShooterCharacter::OnStopFly);

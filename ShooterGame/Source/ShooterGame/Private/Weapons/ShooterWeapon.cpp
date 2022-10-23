@@ -357,21 +357,21 @@ bool AShooterWeapon::CanReload() const
 //////////////////////////////////////////////////////////////////////////
 // Weapon usage
 
-void AShooterWeapon::SwitchMode()
+void AShooterWeapon::SetFireMode(bool bInSecondaryFire)
 {
-	bAlternativeMode = !bAlternativeMode;
+	bSecondaryFire = bInSecondaryFire;
 	if (GetLocalRole() < ROLE_Authority)
 	{
-		ServerSwitchMode();
+		ServerSetFireMode(bInSecondaryFire);
 	}
 }
 
-void AShooterWeapon::ServerSwitchMode_Implementation()
+void AShooterWeapon::ServerSetFireMode_Implementation(bool bSecondaryFire)
 {
-	SwitchMode();
+	SetFireMode(bSecondaryFire);
 }
 
-bool AShooterWeapon::ServerSwitchMode_Validate()
+bool AShooterWeapon::ServerSetFireMode_Validate(bool bSecondaryFire)
 {
 	return true;
 }
@@ -938,7 +938,7 @@ void AShooterWeapon::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & O
 	Super::GetLifetimeReplicatedProps( OutLifetimeProps );
 
 	DOREPLIFETIME(AShooterWeapon, MyPawn);
-	DOREPLIFETIME( AShooterWeapon, bAlternativeMode );
+	DOREPLIFETIME( AShooterWeapon, bSecondaryFire );
 
 	DOREPLIFETIME_CONDITION( AShooterWeapon, CurrentAmmo,		COND_OwnerOnly );
 	DOREPLIFETIME_CONDITION( AShooterWeapon, CurrentAmmoInClip, COND_OwnerOnly );
