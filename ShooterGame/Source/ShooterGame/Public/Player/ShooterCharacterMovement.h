@@ -68,9 +68,6 @@ public:
 
 	bool bWantsToFly;
 
-	UPROPERTY(BlueprintReadOnly)
-	bool bIsFlying;
-
 	UPROPERTY(EditAnywhere, Category = Ability)
 	float TeleportCoolDown;
 
@@ -87,11 +84,12 @@ public:
 	float JetpackConsumeRate;
 
 protected:
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(BlueprintReadOnly, Category = "Ability|Jetpack") //Used from HUD
 	float JetpackFuel;
 
 private:
 	bool CanTeleport() const;
+
 	float LastTeleport;
 
 
