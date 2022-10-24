@@ -77,7 +77,6 @@ AShooterCharacter::AShooterCharacter(const FObjectInitializer& ObjectInitializer
 void AShooterCharacter::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
-
 	if (GetLocalRole() == ROLE_Authority)
 	{
 		Health = GetMaxHealth();
@@ -865,7 +864,6 @@ void AShooterCharacter::SetRunning(bool bNewRunning, bool bToggle)
 {
 	bWantsToRun = bNewRunning;
 	bWantsToRunToggled = bNewRunning && bToggle;
-
 	if (GetLocalRole() < ROLE_Authority)
 	{
 		ServerSetRunning(bNewRunning, bToggle);
@@ -1017,11 +1015,6 @@ void AShooterCharacter::OnStopTeleport()
 
 void AShooterCharacter::OnStartFly()
 {
-	if (!GetCharacterMovement()->IsFalling())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("JUMP"));
-		Jump();
-	}
 	Cast<UShooterCharacterMovement>(GetCharacterMovement())->OnFly();
 }
 

@@ -28,27 +28,41 @@ void UShooterCharacterMovement::OnComponentDestroyed(bool bDestroyedHierachy)
 
 void UShooterCharacterMovement::PerformMovement(float DeltaSeconds)
 {
+	Super::PerformMovement(DeltaSeconds);
 
 	if (bWantsToTeleport)
 	{
 		Teleport();
 	}
+
 	if (bWantsToFly && JetpackFuel >= 0)
 	{
-		FVector newVelocity = FVector(Velocity.X, Velocity.Y, JetpackVelocity);
-		AddForce(newVelocity);
-
-		JetpackFuel -= JetpackConsumeRate * DeltaSeconds;
+		Fly(DeltaSeconds);
+		SetMovementMode(EMovementMode::MOVE_Flying); //other way can be override physCustom and use custom flag movement
 	}
-	else if (JetpackFuel < MaxJetpackFuel && IsMovingOnGround())
+	else if (bWantsToFly)
+	{
+		OnStopFly();
+	}
+	if (JetpackFuel < MaxJetpackFuel && IsMovingOnGround())
 	{
 		JetpackFuel += JetpackConsumeRate * DeltaSeconds;
 	}
-
-	Super::PerformMovement(DeltaSeconds);
-
 }
 
+void UShooterCharacterMovement::ServerStopFly_Implementation()
+{
+	SetMovementMode(EMovementMode::MOVE_Falling);
+}
+
+void UShooterCharacterMovement::Fly(float DeltaSeconds)
+{
+	FVector newVelocity = FVector(Velocity.X, Velocity.Y, JetpackVelocity);
+
+	Velocity = newVelocity;
+
+	JetpackFuel -= JetpackConsumeRate * DeltaSeconds;
+}
 float UShooterCharacterMovement::GetMaxSpeed() const
 {
 	float MaxSpeed = Super::GetMaxSpeed();
@@ -74,6 +88,8 @@ void UShooterCharacterMovement::BeginPlay()
 	Super::BeginPlay();
 	JetpackFuel = MaxJetpackFuel;
 }
+
+
 
 FNetworkPredictionData_Shooter::FNetworkPredictionData_Shooter(const UShooterCharacterMovement& ClientMovement) : FNetworkPredictionData_Client_Character(ClientMovement)
 {
@@ -102,6 +118,7 @@ void FSavedMove_Custom::Clear()
 {
 	Super::Clear();
 	bWantsToTeleport = false;
+	bWantsToFly = false;
 }
 
 void FSavedMove_Custom::PrepMoveFor(ACharacter* Character)
@@ -147,7 +164,10 @@ void UShooterCharacterMovement::OnFly()
 void UShooterCharacterMovement::OnStopFly()
 {
 	bWantsToFly = false;
-
+	if (!CharacterOwner->HasAuthority())
+	{
+		ServerStopFly();
+	}
 }
 
 void UShooterCharacterMovement::Teleport()
@@ -156,10 +176,24 @@ void UShooterCharacterMovement::Teleport()
 	{
 		return;
 	}
-	FVector newPosition = CharacterOwner->GetActorForwardVector() * TeleportDistance;
-	CharacterOwner->AddActorWorldOffset(newPosition, true);
-	LastTeleport = GetWorld()->TimeSeconds;
-	bWantsToTeleport = false;
+	FVector newPosition = GetActorLocation() + (CharacterOwner->GetActorForwardVector() * TeleportDistance);
+	FHitResult hit;
+
+	FVector _, PlayerDimension; //need only player dimension
+	CharacterOwner->GetActorBounds(true, _, PlayerDimension);
+
+
+	//check for obstacles
+	bool hitted = GetWorld()->LineTraceSingleByObjectType(hit, GetActorLocation(), newPosition,ECollisionChannel::ECC_WorldStatic);
+
+	FVector TeleportPosition = hitted ? hit.ImpactPoint - CharacterOwner->GetActorForwardVector() * PlayerDimension.X/2  : newPosition;
+
+	if (CharacterOwner->SetActorLocation(TeleportPosition))
+	{
+		LastTeleport = GetWorld()->TimeSeconds;
+		bWantsToTeleport = false;
+	}
+
 }
 
 void UShooterCharacterMovement::OnTeleportStop()
@@ -167,10 +201,8 @@ void UShooterCharacterMovement::OnTeleportStop()
 	bWantsToTeleport = false;
 }
 
-bool UShooterCharacterMovement::CanFly() const
-{
-	return true;
-}
+
+
 
 bool UShooterCharacterMovement::CanTeleport() const
 {

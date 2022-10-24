@@ -45,7 +45,6 @@ public:
 	virtual float GetMaxSpeed() const override;
 	virtual void BeginPlay() override;
 
-
 	void UpdateFromCompressedFlags(uint8 Flags) override;
 
 	void OnTeleport();
@@ -58,11 +57,19 @@ public:
 
 	void OnTeleportStop();
 
-	bool CanFly() const;
+
+	void Fly(float DeltaSeconds);
+
+	UFUNCTION(reliable,server)
+	void ServerStopFly();
 
 	bool bWantsToTeleport;
+
+
 	bool bWantsToFly;
 
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsFlying;
 
 	UPROPERTY(EditAnywhere, Category = Ability)
 	float TeleportCoolDown;
