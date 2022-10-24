@@ -52,7 +52,7 @@ void UShooterCharacterMovement::PerformMovement(float DeltaSeconds)
 
 void UShooterCharacterMovement::ServerStopFly_Implementation()
 {
-	SetMovementMode(EMovementMode::MOVE_Falling);
+	SetDefaultMovementMode();
 }
 
 void UShooterCharacterMovement::Fly(float DeltaSeconds)
@@ -164,6 +164,7 @@ void UShooterCharacterMovement::OnFly()
 void UShooterCharacterMovement::OnStopFly()
 {
 	bWantsToFly = false;
+	SetDefaultMovementMode();
 	if (!CharacterOwner->HasAuthority())
 	{
 		ServerStopFly();

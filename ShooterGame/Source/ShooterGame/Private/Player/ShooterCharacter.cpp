@@ -315,6 +315,10 @@ void AShooterCharacter::OnIce(const USpecialShooterDamageType* DamageType)
 	{
 		OnStopFire();
 	}
+	if (DamageType->bBlockMovement)
+	{
+		OnStopFly();
+	}
 
 	bIsMovementBlocked = DamageType->bBlockMovement;
 	bIsWeaponBlocked = DamageType->bBlockShooting;
@@ -1015,7 +1019,10 @@ void AShooterCharacter::OnStopTeleport()
 
 void AShooterCharacter::OnStartFly()
 {
-	Cast<UShooterCharacterMovement>(GetCharacterMovement())->OnFly();
+	if (!IsMovementBlocked())
+	{
+		Cast<UShooterCharacterMovement>(GetCharacterMovement())->OnFly();
+	}
 }
 
 void AShooterCharacter::OnStopFly()
